@@ -10,33 +10,36 @@ const SECTION_TITLES: [&str; 7] = [
     "humidity-to-location",
 ];
 
-fn get_section_map<'a>(input: &'a str, section_title: &str) -> Vec<&'a str> {
-    let section = input
-        .split("\n\n")
-        .find(|section| section.starts_with(section_title))
-        .unwrap();
-
-    return section
-        .lines()
-        .skip(1)
-        .collect::<Vec<&str>>();
-}
-
 fn part1(input: &str) -> i64 {
-    let seeds_parts = input.lines().next().unwrap().split(':').collect::<Vec<&str>>();
-    let seeds_str = seeds_parts[1].trim().split(' ').collect::<Vec<&str>>();
-    let mut seeds = seeds_str.iter().map(|s| s.parse::<i64>().unwrap()).collect::<Vec<i64>>();
+    let seeds: Vec<i64> = input
+        .lines()
+        .next()
+        .unwrap()
+        .split(':')
+        .nth(1)
+        .unwrap()
+        .trim()
+        .split(' ')
+        .map(|s| s.parse::<i64>().unwrap())
+        .collect();
+
+    let maps_list: Vec<Vec<&str>> = SECTION_TITLES.iter().map(|section_title| {
+        return input
+            .split("\n\n")
+            .find(|section| section.starts_with(section_title))
+            .unwrap()
+            .lines()
+            .skip(1)
+            .collect::<Vec<&str>>();
+    }).collect();
 
     return seeds.iter().map(|seed| {
         let mut seed = seed.clone();
 
-        SECTION_TITLES.iter().for_each(|section_title| {
-            let section_map = get_section_map(input, section_title);
-            for line in section_map {
-                let numbers = line.split(' ').collect::<Vec<&str>>().iter().map(|s| s.parse::<i64>().unwrap()).collect::<Vec<i64>>();
-                let destination_range_start = numbers[0];
-                let source_range_start = numbers[1];
-                let range_length = numbers[2];
+        maps_list.iter().for_each(|maps| {
+            for line in maps {
+                let numbers: Vec<i64> = line.split(' ').map(|s| s.parse().unwrap()).collect();
+                let (destination_range_start, source_range_start, range_length) = (numbers[0], numbers[1], numbers[2]);
 
                 if seed >= source_range_start && seed < source_range_start + range_length {
                     seed = destination_range_start + (seed - source_range_start);
