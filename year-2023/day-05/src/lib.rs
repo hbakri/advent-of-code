@@ -36,34 +36,25 @@ fn get_seeds_and_maps_list(input: &str) -> (Vec<i64>, Vec<Vec<&str>>) {
     return (seeds, maps_list);
 }
 
-fn get_intersection_range(range1: &(i64, i64), range2: &(i64, i64)) -> Option<(i64, i64)> {
-    let intersection_start = range1.0.max(range2.0);
-    let intersection_end = (range1.0 + range1.1).min(range2.0 + range2.1);
+fn get_intersection_range(seed_range: &(i64, i64), map_range: &(i64, i64)) -> (Option<(i64, i64)>, Vec<(i64, i64)>) {
+    let intersection_start = seed_range.0.max(map_range.0);
+    let intersection_end = (seed_range.0 + seed_range.1).min(map_range.0 + map_range.1);
     let intersection_length = intersection_end - intersection_start;
 
-    return if intersection_length > 0 {
-        Some((intersection_start, intersection_length))
-    } else {
-        None
-    }
-}
+    if intersection_length > 0 {
+        let intersection_range = (intersection_start, intersection_length);
+        let mut complementary_ranges: Vec<(i64, i64)> = vec![];
 
-fn get_complementary_ranges(range: (i64, i64), mapped_ranges: &Vec<(i64, i64)>) -> Vec<(i64, i64)> {
-    let mut complementary_ranges: Vec<(i64, i64)> = vec![];
-
-    let mut previous_range_end = range.0;
-    mapped_ranges.iter().for_each(|(mapped_range_start, mapped_range_length)| {
-        if previous_range_end < *mapped_range_start {
-            complementary_ranges.push((previous_range_end, *mapped_range_start - previous_range_end));
+        if seed_range.0 < intersection_start {
+            complementary_ranges.push((seed_range.0, intersection_start - seed_range.0));
         }
-        previous_range_end = mapped_range_start + mapped_range_length;
-    });
-
-    if previous_range_end < range.0 + range.1 {
-        complementary_ranges.push((previous_range_end, range.0 + range.1 - previous_range_end));
+        if seed_range.0 + seed_range.1 > intersection_end {
+            complementary_ranges.push((intersection_end, seed_range.0 + seed_range.1 - intersection_end));
+        }
+        return (Some(intersection_range), complementary_ranges);
+    } else {
+        return (None, vec![]);
     }
-
-    return complementary_ranges;
 }
 
 fn part1(input: &str) -> i64 {
@@ -74,7 +65,7 @@ fn part1(input: &str) -> i64 {
 
         maps_list.iter().for_each(|maps| {
             for line in maps {
-                let numbers: Vec<i64> = line.split(' ').map(|s| s.parse().unwrap()).collect();
+                let numbers: Vec<i64> = line.split_whitespace().map(|s| s.parse().unwrap()).collect();
                 let (destination_range_start, source_range_start, range_length) = (numbers[0], numbers[1], numbers[2]);
 
                 if seed >= source_range_start && seed < source_range_start + range_length {
@@ -103,27 +94,30 @@ fn part2(input: &str) -> i64 {
     let mut unmapped_seed_ranges: Vec<(i64, i64)> = vec![];
 
     maps_list.iter().for_each(|maps| {
-        seed_ranges.iter().for_each(|seed_range| {
-            for line in maps {
-                let numbers: Vec<i64> = line.split(' ').map(|s| s.parse().unwrap()).collect();
-                let (destination_range_start, source_range_start, range_length) = (numbers[0], numbers[1], numbers[2]);
+        maps.iter().for_each(|line| {
+            let numbers: Vec<i64> = line.split_whitespace().map(|s| s.parse().unwrap()).collect();
+            let (destination_range_start, source_range_start, range_length) = (numbers[0], numbers[1], numbers[2]);
 
-                if let Some(intersection_range) = get_intersection_range(seed_range, &(source_range_start, range_length)) {
+            unmapped_seed_ranges.clear();
+            seed_ranges.iter().for_each(|seed_range| {
+                if let (Some(intersection_range), mut complementary_ranges) = get_intersection_range(seed_range, &(source_range_start, range_length)) {
                     mapped_seed_ranges.push((intersection_range, destination_range_start - source_range_start));
+                    unmapped_seed_ranges.append(&mut complementary_ranges);
+                } else {
+                    unmapped_seed_ranges.push(seed_range.clone());
                 }
-            }
+            });
 
-            mapped_seed_ranges.sort_by_key(|((intersection_start, _), _)| *intersection_start);
-            unmapped_seed_ranges = get_complementary_ranges(*seed_range, &mapped_seed_ranges.iter().map(|(mapped_seed_range, _)| *mapped_seed_range).collect::<Vec<(i64, i64)>>());
+            seed_ranges.clear();
+            seed_ranges.extend(unmapped_seed_ranges.iter().cloned());
         });
 
-        seed_ranges = mapped_seed_ranges
-            .iter()
-            .map(|((range_start, range_length), offset)| (range_start + offset, range_length.clone()))
-            .collect();
-        seed_ranges.append(&mut unmapped_seed_ranges);
-        mapped_seed_ranges = vec![];
-        unmapped_seed_ranges = vec![];
+        seed_ranges.extend(
+            mapped_seed_ranges
+                .iter()
+                .map(|((range_start, range_length), offset)| (range_start + offset, *range_length))
+        );
+        mapped_seed_ranges.clear();
     });
     return seed_ranges.iter().map(|(range_start, _)| range_start).min().unwrap().clone();
 }
@@ -151,18 +145,8 @@ mod tests {
     }
 
     #[test]
-    fn test_get_complementary_ranges() {
-        let range = (0, 10);
-        let mapped_ranges = vec![(0, 5), (7, 3)];
-        let complementary_ranges = get_complementary_ranges(range, &mapped_ranges);
-        assert_eq!(complementary_ranges, vec![(5, 2)]);
-    }
-
-    #[test]
-    fn test_get_intersection_range() {
-        let range1 = (0, 10);
-        let range2 = (5, 10);
-        let intersection = get_intersection_range(&range1, &range2);
-        assert_eq!(intersection, Some((5, 5)));
+    fn test_input_part2() {
+        let contents = fs::read_to_string("input.txt").unwrap();
+        assert_eq!(part2(&contents.trim()), 72263011);
     }
 }
