@@ -98,7 +98,6 @@ fn part2(input: &str) -> i64 {
             let numbers: Vec<i64> = line.split_whitespace().map(|s| s.parse().unwrap()).collect();
             let (destination_range_start, source_range_start, range_length) = (numbers[0], numbers[1], numbers[2]);
 
-            unmapped_seed_ranges.clear();
             seed_ranges.iter().for_each(|seed_range| {
                 if let (Some(intersection_range), mut complementary_ranges) = get_intersection_range(seed_range, &(source_range_start, range_length)) {
                     mapped_seed_ranges.push((intersection_range, destination_range_start - source_range_start));
@@ -110,6 +109,7 @@ fn part2(input: &str) -> i64 {
 
             seed_ranges.clear();
             seed_ranges.extend(unmapped_seed_ranges.iter().cloned());
+            unmapped_seed_ranges.clear();
         });
 
         seed_ranges.extend(
